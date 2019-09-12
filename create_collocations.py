@@ -10,7 +10,10 @@ from math import log
 def isdir(path):
     if os.path.isdir(path):
         return path
-    else:
+    try:
+        os.mkdir(path)
+        return path
+    except:
         raise argparse.ArgumentTypeError("{} is not a valid path".format(path))
 
 
@@ -112,7 +115,7 @@ def main():
 
         with open(os.path.join(target_folder, "'{}'_collocates.tsv".format(word.replace(r"/", "<slash>"))), "w") as f:
             f.write("WORD\t{}\tFREQUENCY\t{}\n".format(word, fdict[word]))
-            writer = csv.DictWriter(f, fieldnames=["word", "LL", "coll_count", "word_count"], dialect="excel_tab")
+            writer = csv.DictWriter(f, fieldnames=["word", "LL", "coll_count", "word_count"], dialect="excel-tab")
             writer.writeheader()
             for r in compute_word_collocates(word, args.limit, args.mincount, coocurrence, fdict, total):
                 writer.writerow(r)
