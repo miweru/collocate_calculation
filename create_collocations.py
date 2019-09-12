@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import argparse
-import os
 import csv
+import os
+import string
 from collections import Counter
 from math import log
-import string
 
 
 def isdir(path):
@@ -37,9 +37,9 @@ def count_vrt(fo, coocurrence, fdict, span):
         if e.startswith("<s") or e.startswith("</s"):
             for i, w in enumerate(sentence):
                 if w not in coocurrence:
-                    coocurrence[w]=Counter()
+                    coocurrence[w] = Counter()
                 add_coo(coocurrence[w], sentence, i, span)
-                fdict[w]+=1
+                fdict[w] += 1
             sentence.clear()
         elif e.startswith("<"):
             continue
