@@ -31,8 +31,20 @@ def count_text(fo, coocurrence, fdict, span):
             fdict[w] += 1
 
 
-def count_vrt(fo, coocurrence, fdict):
-    pass
+def count_vrt(fo, coocurrence, fdict, span):
+    sentence = []
+    for e in fo:
+        if e.startswith("<s") or e.startswith("</s"):
+            for i, w in enumerate(sentence):
+                if w not in coocurrence:
+                    coocurrence[w]=Counter()
+                add_coo(coocurrence[w], sentence, i, span)
+                fdict[w]+=1
+            sentence.clear()
+        elif e.startswith("<"):
+            continue
+        else:
+            sentence.append(e.strip().split("\t")[0])
 
 
 def compute_ll(w1, w2, minval, coocurrence, fdict, total):
