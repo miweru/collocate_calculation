@@ -4,7 +4,7 @@ import csv
 import os
 import string
 from collections import Counter
-from math import log
+from math import log, log2
 
 
 def isdir(path):
@@ -67,43 +67,71 @@ def compute_ll(w1, w2, minval, coocurrence, fdict, total):
     return collocation_val
 
 
-def compute_zscore(w1, w2, minval, coocurrence, fdict, total, span):
-    if fdict[w1] < minval or fdict[w2] < minval:
-        return -1
-    a = coocurrence[w1][w2]
+def compute_am(w1, w2, minval, coocurrence, fdict, total, span):
+    N = total
+    Fn = fdict[w1]
+    Fc = fdict[w2]
+    Fnc = coocurrence[w1][w2]
+    S = span
 
     try:
-
-        p = fdict[w2] / (total - fdict[w1])
-        E = p * fdict[w1] * (span * 2)
-        z = (a - E) / ((E * (1 - p)) ** 1 / 2)
-
+        mi = log2((Fnc * N) / (Fn * Fc * S))
     except ValueError:
-        return -1
-    return z
-
-def compute_oe(w1, w2, minval, coocurrence, fdict, total, span):
-    if fdict[w1] < minval or fdict[w2] < minval:
-        return -1
-    a = coocurrence[w1][w2]
+        mi = -1
 
     try:
-        zaehler = a * (total-fdict[w1])
-        nenner = fdict[w1]*fdict[w2]*span
-
-        oe = zaehler/nenner
-
+        mi3 = log2(
+            ((Fnc ** 3) * N) / (Fn * Fc * S)
+        )
     except ValueError:
-        return -1
-    return oe
+        mi3 = -1
+
+    try:
+        p = Fc / (N - Fn)
+        E = p * Fn * S
+        zscore = (Fnc - E) / ((E * (1 - p)) ** 1 / 2)
+    except ValueError:
+        zscore = -1
+
+    try:
+        oe = (Fnc * (N - Fn)) / (Fn * Fc * S)
+    except ValueError:
+        oe = -1
+
+    try:
+        z1 = log((Fnc * N) / (Fn * Fc * S))
+        z2 = log(Fnc)
+        zaehler = z1 * z2
+        nenner = log(2) ** 2
+        loglog = zaehler / nenner
+    except ValueError:
+        loglog = -1
+
+    results = {
+        "mi": mi,
+        "mi3": mi3,
+        "zscore": zscore,
+        "observed/expected": oe,
+        "logLog": loglog
+    }
+    return results
 
 
 def compute_word_collocates(w1, limit, minval, coocurrence, fdict, total, SPAN):
     results = sorted([(compute_ll(w1, w2, minval, coocurrence, fdict, total), w2) for w2 in coocurrence[w1]],
                      reverse=True)[:limit]
-    return [{"word": word, "LL": ll, "coll_count": coocurrence[w1][word], "word_count": fdict[word],
-             "zscore": compute_zscore(w1, word, minval, coocurrence, fdict, total, SPAN), "observed/expected": compute_oe(w1, word, minval, coocurrence, fdict, total, SPAN)} for i, (ll, word)
-            in enumerate(results) if ll > 0]
+
+    rlist = []
+    for i, (ll, word) in enumerate(results):
+        if ll <= 0:
+            continue
+        rentry = compute_am(w1, word, minval, coocurrence, fdict, total, SPAN)
+        rentry["word"] = word
+        rentry["LL"] = ll
+        rentry["coll_count"] = coocurrence[w1][word]
+        rlist.append(rentry)
+
+    return rlist
 
 
 def main():
@@ -147,7 +175,9 @@ def main():
 
         with open(os.path.join(target_folder, "'{}'_collocates.tsv".format(word.replace(r"/", "<slash>"))), "w") as f:
             f.write("WORD\t{}\tFREQUENCY\t{}\n".format(word, fdict[word]))
-            writer = csv.DictWriter(f, fieldnames=["word", "LL", "coll_count", "word_count", "zscore","observed/expected"],
+            writer = csv.DictWriter(f,
+                                    fieldnames=["word", "LL", "coll_count", "word_count", "zscore", "observed/expected",
+                                                "mi", "mi3", "logLog"],
                                     dialect="excel-tab")
             writer.writeheader()
             for r in compute_word_collocates(word, args.limit, args.mincount, coocurrence, fdict, total, SPAN):
