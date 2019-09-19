@@ -67,10 +67,27 @@ def compute_ll(w1, w2, minval, coocurrence, fdict, total):
     return collocation_val
 
 
-def compute_word_collocates(w1, limit, minval, coocurrence, fdict, total):
+def compute_zscore(w1, w2, minval, coocurrence, fdict, total, span):
+    if fdict[w1] < minval or fdict[w2] < minval:
+        return -1
+    a = coocurrence[w1][w2]
+
+    try:
+
+        p = fdict[w2] / (total - fdict[w1])
+        E = p * fdict[w1] * (span * 2)
+        z = (a - E) / ((E * (1 - p)) ** 1 / 2)
+
+    except ValueError:
+        return -1
+    return z
+
+
+def compute_word_collocates(w1, limit, minval, coocurrence, fdict, total, SPAN):
     results = sorted([(compute_ll(w1, w2, minval, coocurrence, fdict, total), w2) for w2 in coocurrence[w1]],
                      reverse=True)[:limit]
-    return [{"word": word, "LL": ll, "coll_count": coocurrence[w1][word], "word_count": fdict[word]} for i, (ll, word)
+    return [{"word": word, "LL": ll, "coll_count": coocurrence[w1][word], "word_count": fdict[word],
+             "zscore": compute_zscore(w1, word, minval, coocurrence, fdict, total, SPAN)} for i, (ll, word)
             in enumerate(results) if ll > 0]
 
 
@@ -115,9 +132,10 @@ def main():
 
         with open(os.path.join(target_folder, "'{}'_collocates.tsv".format(word.replace(r"/", "<slash>"))), "w") as f:
             f.write("WORD\t{}\tFREQUENCY\t{}\n".format(word, fdict[word]))
-            writer = csv.DictWriter(f, fieldnames=["word", "LL", "coll_count", "word_count"], dialect="excel-tab")
+            writer = csv.DictWriter(f, fieldnames=["word", "LL", "coll_count", "word_count", "zscore"],
+                                    dialect="excel-tab")
             writer.writeheader()
-            for r in compute_word_collocates(word, args.limit, args.mincount, coocurrence, fdict, total):
+            for r in compute_word_collocates(word, args.limit, args.mincount, coocurrence, fdict, total, SPAN):
                 writer.writerow(r)
 
 
