@@ -24,9 +24,11 @@ def add_coo(subdict, sentence, pos, span):
             subdict[tword] += 1
 
 
-def count_text(fo, coocurrence, fdict, span):
+def count_text(fo, coocurrence, fdict, span, lookup):
     for e in fo:
         line = e.split()
+        if lookup:
+            line = [lookup[w] if w in lookup else w for w in line]
         for i, w in enumerate(line):
             if w not in coocurrence:
                 coocurrence[w] = Counter()
@@ -34,10 +36,13 @@ def count_text(fo, coocurrence, fdict, span):
             fdict[w] += 1
 
 
-def count_vrt(fo, coocurrence, fdict, span):
+def count_vrt(fo, coocurrence, fdict, span, lookup):
     sentence = []
     for e in fo:
         if e.startswith("<s") or e.startswith("</s"):
+            if lookup:
+                sentence = [lookup[w] if w in lookup else w for w in sentence]
+
             for i, w in enumerate(sentence):
                 if w not in coocurrence:
                     coocurrence[w] = Counter()
@@ -143,6 +148,8 @@ def main():
     parser.add_argument("-m", "--mincount", type=int, default=5,
                         help="Min Count of Sourcewords and Target words to be in the output.")
     parser.add_argument("--limit", type=int, default=1000, help="MaxCollocates per Word")
+    parser.add_argument("--lemma_lookup", type=argparse.FileType("r"),
+                        help="Path to tab-separated wordform\tlemma-lookup")
 
     args = parser.parse_args()
     BASEPATH = args.output
@@ -151,13 +158,18 @@ def main():
     coocurrence = dict()
     fdict = Counter()
 
+    if args.lemma_lookup:
+        lookuptable = {w: l for w, l in [line.strip().split("\t") for line in args.lemma_lookup]}
+    else:
+        lookuptable = None
+
     if args.text and args.vrt:
         raise argparse.ArgumentError("Do not use both -v and -t.")
 
     if args.text:
-        count_text(args.text, coocurrence, fdict, SPAN)
+        count_text(args.text, coocurrence, fdict, SPAN, lookuptable)
     if args.vrt:
-        count_vrt(args.vrt, coocurrence, fdict, SPAN)
+        count_vrt(args.vrt, coocurrence, fdict, SPAN, lookuptable)
 
     total = sum(fdict.values())
 
